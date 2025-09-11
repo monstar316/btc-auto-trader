@@ -1,24 +1,34 @@
-version: "3.9"
+version: "3.8"
 
 services:
-  btc-bot:
+  kraken-bot:
     build: ./bot
-    container_name: btc-bot
+    container_name: kraken-bot
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - KRAKEN_MODE=${KRAKEN_MODE}
+      - KRAKEN_SANDBOX_API_KEY=${KRAKEN_SANDBOX_API_KEY}
+      - KRAKEN_SANDBOX_API_SECRET=${KRAKEN_SANDBOX_API_SECRET}
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - ENABLE_TELEGRAM_ALERTS=${ENABLE_TELEGRAM_ALERTS}
     ports:
-      - "5000:5000"   # Flask health endpoint
+      - "5000:5000"
     volumes:
-      - ./data:/app/data:rw  # bot reads/writes bot_state.json, trades.json
+      - ./data:/app/data
 
-  btc-dashboard:
+  kraken-dashboard:
     build: ./dashboard
-    container_name: btc-dashboard
+    container_name: kraken-dashboard
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - ENABLE_TELEGRAM_ALERTS=${ENABLE_TELEGRAM_ALERTS}
     ports:
-      - "8501:8501"   # Streamlit dashboard
+      - "8501:8501"
     volumes:
-      - ./data:/app/data:ro  # dashboard only reads the data folder
+      - ./data:/app/data
+    command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0

@@ -5,14 +5,21 @@ import krakenex
 from dotenv import load_dotenv
 from flask import Flask
 from threading import Thread
+from datetime import datetime
+
+# --- Track the date for daily reset ---
+if "last_reset_date" not in state:
+    state["last_reset_date"] = datetime.utcnow().strftime("%Y-%m-%d")
+    save_json(STATE_FILE, state)
 
 # --- Load environment variables ---
 load_dotenv()
 
-# --- File paths ---
-STATE_FILE = "data/bot_state.json"
-CONFIG_FILE = "data/config.json"
-TRADE_LOG = "data/trades.json"
+# --- Absolute paths inside the container ---
+DATA_DIR = "/app/data"
+STATE_FILE = os.path.join(DATA_DIR, "bot_state.json")
+CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
+TRADE_LOG = os.path.join(DATA_DIR, "trades.json")
 
 # --- JSON helpers ---
 def load_json(path):
@@ -105,6 +112,14 @@ def simulate_trade(state, trade_type="buy", amount=0.001):
           f"{trade_type.upper()} trade: {amount} {TRADE_SYMBOL} at £{price:.2f}", flush=True)
 
 # --- Main loop ---
+# --- Reset trades_today at midnight UTC ---
+today = datetime.utcnow().strftime("%Y-%m-%d")
+if state.get("last_reset_date") != today:
+    state["trades_today"] = 0
+    state["last_reset_date"] = today
+    save_json(STATE_FILE, state)
+    print("♻️ Daily trade count reset.", flush=True)
+
 print("🚀 Bot started...", flush=True)
 while True:
     try:

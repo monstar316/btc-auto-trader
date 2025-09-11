@@ -1,11 +1,15 @@
 import streamlit as st
 import json
 import time
+import os
 
-STATE_FILE = "data/bot_state.json"
-TRADE_FILE = "data/trades.json"
-CONFIG_FILE = "data/config.json"
+# --- Absolute paths inside the container ---
+DATA_DIR = "/app/data"
+STATE_FILE = os.path.join(DATA_DIR, "bot_state.json")
+TRADE_FILE = os.path.join(DATA_DIR, "trades.json")
+CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 
+# --- JSON helpers ---
 def load_json(path):
     try:
         with open(path, "r") as f:
