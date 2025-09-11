@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  btc-bot:
+    build: ./bot
+    container_name: btc-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"   # Flask health endpoint
+    volumes:
+      - ./data:/app/data:rw  # bot reads/writes bot_state.json, trades.json
+
+  btc-dashboard:
+    build: ./dashboard
+    container_name: btc-dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"   # Streamlit dashboard
+    volumes:
+      - ./data:/app/data:ro  # dashboard only reads the data folder
