@@ -12,19 +12,6 @@ TRADES_FILE = os.path.join(DATA_DIR, "trades.json")
 # 🔄 Auto-refresh every 10 seconds
 count = st_autorefresh(interval=10000, limit=100, key="Refresh")
 
-# The function returns a counter for number of refreshes. This allows the
-# ability to make special requests at different intervals based on the count
-if count == 0:
-    st.write("Count is zero")
-elif count % 3 == 0 and count % 5 == 0:
-    st.write("FizzBuzz")
-elif count % 3 == 0:
-    st.write("Fizz")
-elif count % 5 == 0:
-    st.write("Buzz")
-else:
-    st.write(f"Count: {count}")
-
 # Helper to load JSON safely
 def load_json(file_path, default):
     if os.path.exists(file_path):
