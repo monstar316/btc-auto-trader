@@ -9,7 +9,7 @@ STATE_FILE = os.path.join(DATA_DIR, "bot_state.json")
 TRADES_FILE = os.path.join(DATA_DIR, "trades.json")
 
 # 🔄 Auto-refresh every 10 seconds
-st_autorefresh = st.experimental_autorefresh(interval=10 * 1000, key="refresh")
+st_autorefresh = st_autorefresh(interval=10 * 1000, key="refresh")
 
 # Helper to load JSON safely
 def load_json(file_path, default):
