@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+from streamlist_autorefresh import st_autorefresh
 from datetime import datetime
 
 DATA_DIR = "/app/data"
