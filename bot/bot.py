@@ -19,7 +19,6 @@ CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 # -------------------------------------------------------------------
 
 def load_json_file(path, default):
-    """Safely load a JSON file or return default if missing/corrupt."""
     if os.path.exists(path):
         try:
             with open(path, "r") as f:
@@ -30,7 +29,6 @@ def load_json_file(path, default):
     return default
 
 def save_json_file(path, data):
-    """Save dictionary/list safely to JSON."""
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
@@ -39,16 +37,12 @@ def save_json_file(path, data):
 # -------------------------------------------------------------------
 
 state = load_json_file(STATE_FILE, {})
-
 if "last_reset_date" not in state:
     state["last_reset_date"] = datetime.utcnow().strftime("%Y-%m-%d")
-
 if "daily_trade_count" not in state:
     state["daily_trade_count"] = 0
-
 if "open_trades" not in state:
     state["open_trades"] = []
-
 save_json_file(STATE_FILE, state)
 
 trades = load_json_file(TRADES_FILE, [])
@@ -59,7 +53,9 @@ config = load_json_file(CONFIG_FILE, {
     "base_currency": "GBP",
     "trade_amount": 100,
     "max_daily_trades": 5,
-    "symbol": "BTC/GBP"
+    "symbol": "BTC/GBP",
+    "take_profit_pct": 2.0,   # close trade at +2% profit
+    "stop_loss_pct": 1.0      # close trade at -1% loss
 })
 save_json_file(CONFIG_FILE, config)
 
@@ -68,7 +64,6 @@ save_json_file(CONFIG_FILE, config)
 # -------------------------------------------------------------------
 
 def reset_daily_trade_count():
-    """Reset daily trade count if the date has changed (UTC)."""
     today = datetime.utcnow().strftime("%Y-%m-%d")
     if state["last_reset_date"] != today:
         print(f"🔄 New day detected ({today}), resetting daily trade count.")
@@ -81,14 +76,12 @@ def reset_daily_trade_count():
 # -------------------------------------------------------------------
 
 def can_trade():
-    """Check if the bot can place a trade today."""
     if state["daily_trade_count"] >= config.get("max_daily_trades", 5):
         print(f"⛔ Max daily trades ({config['max_daily_trades']}) reached. No more trades today.")
         return False
     return True
 
 def open_trade(symbol, amount, price):
-    """Record an open trade in state."""
     trade = {
         "id": len(trades) + len(state["open_trades"]) + 1,
         "timestamp_open": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
@@ -103,13 +96,12 @@ def open_trade(symbol, amount, price):
     save_json_file(STATE_FILE, state)
     print(f"✅ Opened trade: {trade}")
 
-def close_trade(trade, exit_price):
-    """Close a trade, calculate P&L, and move it to trades history."""
+def close_trade(trade, exit_price, reason):
     trade["timestamp_close"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     trade["price_close"] = exit_price
     trade["status"] = "CLOSED"
+    trade["close_reason"] = reason
 
-    # P&L calculation
     entry = trade["price_open"]
     pnl_pct = ((exit_price - entry) / entry) * 100
     pnl_value = (exit_price - entry) * trade["amount"]
@@ -120,28 +112,30 @@ def close_trade(trade, exit_price):
     trades.append(trade)
     save_json_file(TRADES_FILE, trades)
 
-    # Remove from open trades
     state["open_trades"] = [t for t in state["open_trades"] if t["id"] != trade["id"]]
     save_json_file(STATE_FILE, state)
 
-    print(f"📊 Closed trade {trade['id']} | P&L: {trade['pnl_pct']}% ({trade['pnl_value']} {config['base_currency']})")
+    print(f"📊 Closed trade {trade['id']} | {reason} | P&L: {trade['pnl_pct']}% ({trade['pnl_value']} {config['base_currency']})")
 
 # -------------------------------------------------------------------
-# Example strategy (toy logic for demo)
+# Strategy logic
 # -------------------------------------------------------------------
 
 def strategy(price):
-    """Dummy strategy to demonstrate open/close trades."""
-    # Open trade if no open trades exist
-    if can_trade() and len(state["open_trades"]) == 0:
+    # Open trade if none exist
+    if can_trade() and not state["open_trades"]:
         open_trade(config["symbol"], config["trade_amount"], price)
 
-    # If trade exists, close it if price moves >1% up
-    elif state["open_trades"]:
-        trade = state["open_trades"][0]
+    # Check open trades
+    for trade in list(state["open_trades"]):
         entry = trade["price_open"]
-        if price >= entry * 1.01:
-            close_trade(trade, price)
+        tp_level = entry * (1 + config["take_profit_pct"] / 100)
+        sl_level = entry * (1 - config["stop_loss_pct"] / 100)
+
+        if price >= tp_level:
+            close_trade(trade, price, "TAKE_PROFIT")
+        elif price <= sl_level:
+            close_trade(trade, price, "STOP_LOSS")
 
 # -------------------------------------------------------------------
 # Main loop
@@ -152,10 +146,8 @@ print("🚀 Kraken Bot starting...")
 while True:
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     reset_daily_trade_count()
-
     print(f"[{now}] Bot heartbeat. Trades today: {state['daily_trade_count']} / {config['max_daily_trades']}")
 
-    # Fetch BTC/GBP price
     try:
         response = requests.get("https://api.kraken.com/0/public/Ticker?pair=BTCGBP")
         data = response.json()
