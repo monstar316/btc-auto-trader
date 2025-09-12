@@ -33,30 +33,44 @@ def save_json_file(path, data):
         json.dump(data, f, indent=2)
 
 # -------------------------------------------------------------------
-# Load / initialize files
+# Defaults
 # -------------------------------------------------------------------
 
-state = load_json_file(STATE_FILE, {})
-if "last_reset_date" not in state:
-    state["last_reset_date"] = datetime.utcnow().strftime("%Y-%m-%d")
-if "daily_trade_count" not in state:
-    state["daily_trade_count"] = 0
-if "open_trades" not in state:
-    state["open_trades"] = []
-save_json_file(STATE_FILE, state)
-
-trades = load_json_file(TRADES_FILE, [])
-save_json_file(TRADES_FILE, trades)
-
-config = load_json_file(CONFIG_FILE, {
-    "paper_trading": True,
+DEFAULT_CONFIG = {
+    "paper_trading": False,
     "base_currency": "GBP",
     "trade_amount": 100,
     "max_daily_trades": 5,
     "symbol": "BTC/GBP",
     "take_profit_pct": 2.0,   # close trade at +2% profit
     "stop_loss_pct": 1.0      # close trade at -1% loss
-})
+}
+
+DEFAULT_STATE = {
+    "last_reset_date": datetime.utcnow().strftime("%Y-%m-%d"),
+    "daily_trade_count": 0,
+    "open_trades": []
+}
+
+# -------------------------------------------------------------------
+# Load / initialize files
+# -------------------------------------------------------------------
+
+state = load_json_file(STATE_FILE, DEFAULT_STATE)
+# Ensure all keys exist
+for key, value in DEFAULT_STATE.items():
+    if key not in state:
+        state[key] = value
+save_json_file(STATE_FILE, state)
+
+trades = load_json_file(TRADES_FILE, [])
+save_json_file(TRADES_FILE, trades)
+
+config = load_json_file(CONFIG_FILE, DEFAULT_CONFIG)
+# Merge defaults into config
+for key, value in DEFAULT_CONFIG.items():
+    if key not in config:
+        config[key] = value
 save_json_file(CONFIG_FILE, config)
 
 # -------------------------------------------------------------------
@@ -76,7 +90,7 @@ def reset_daily_trade_count():
 # -------------------------------------------------------------------
 
 def can_trade():
-    if state["daily_trade_count"] >= config.get("max_daily_trades", 5):
+    if state["daily_trade_count"] >= config["max_daily_trades"]:
         print(f"⛔ Max daily trades ({config['max_daily_trades']}) reached. No more trades today.")
         return False
     return True
