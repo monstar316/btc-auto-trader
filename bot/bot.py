@@ -4,11 +4,27 @@ import time
 import datetime
 import ccxt
 
-# === Load Config ===
+# Always look in /app/data/config.json
 CONFIG_FILE = os.path.join("data", "config.json")
 
-with open(CONFIG_FILE) as f:
-    config = json.load(f)
+# Load config safely
+if os.path.exists(CONFIG_FILE):
+    with open(CONFIG_FILE) as f:
+        config = json.load(f)
+else:
+    print("⚠️ config.json not found. Using defaults...")
+    config = {
+        "mode": "balanced",
+        "trade_symbol": "XXBTZGBP",
+        "trade_amount": 0.001,
+        "dip_percentage": 2,
+        "stop_loss": 3,
+        "take_profit": 5,
+        "trailing_stop": 1.5,
+        "cooldown_minutes": 30,
+        "max_trades_per_day": 3,
+        "paper_trading": False
+    }
 
 TRADE_SYMBOL = config.get("trade_symbol", "XXBTZGBP")
 TRADE_AMOUNT = config.get("trade_amount", 0.001)
