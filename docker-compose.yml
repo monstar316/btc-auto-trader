@@ -17,7 +17,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      - ./bot:/app
       - ./data:/app/data:rw   # ensure read/write
+    working_dir: /app
 
   kraken-dashboard:
     build: ./dashboard
@@ -30,5 +32,7 @@ services:
     ports:
       - "8501:8501"
     volumes:
+      - ./dashboard:/app
       - ./data:/app/data:rw   # same mount for dashboard
+    working_dir: /app
     command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
