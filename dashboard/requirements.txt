@@ -3,3 +3,5 @@ streamlit-autorefresh
 matplotlib
 pandas
 requests
+krakenex
+pykrakenapi
