@@ -1,56 +1,103 @@
-import streamlit as st
-import json
 import os
-import krakenex
-from pykrakenapi import KrakenAPI
+import json
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
 from streamlit_autorefresh import st_autorefresh
 
-# Load config
-with open("config.json") as f:
-    config = json.load(f)
+# --------------------------
+# Helpers
+# --------------------------
+def load_config():
+    """Load config with safe defaults if missing."""
+    config_path = os.getenv("CONFIG_PATH", "config.json")
+    try:
+        with open(config_path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        st.warning("⚠️ config.json not found — using defaults")
+        return {
+            "trade_symbol": "XXBTZGBP",
+            "trade_amount": 0.001,
+            "max_daily_trades": 3,
+            "paper_trading": False
+        }
 
-# Kraken connection
-api = krakenex.API()
-api.load_key('kraken.key')  # Make sure you have your key file
-k = KrakenAPI(api)
+def load_json(filename, default):
+    try:
+        with open(filename) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return default
 
-# Auto refresh every 10s
-count = st_autorefresh(interval=10000, key="Refresh")
+# --------------------------
+# Load data
+# --------------------------
+config = load_config()
+state = load_json("bot_state.json", {})
+trades = load_json("trades.json", [])
 
-st.title("Defensive Stock Bot Dashboard")
+# --------------------------
+# Dashboard Layout
+# --------------------------
+st.set_page_config(page_title="Kraken Trading Bot", layout="wide")
+st.title("📊 Kraken Trading Bot Dashboard")
 
-# Display config
-st.subheader("Configuration")
+# Auto-refresh every 10s
+st_autorefresh(interval=10 * 1000, key="refresh")
+
+# --------------------------
+# Config Section
+# --------------------------
+st.subheader("⚙️ Current Configuration")
 st.json(config)
 
-# Fetch ticker data
-pair = config["trading"]["pair"]
+# --------------------------
+# Bot State
+# --------------------------
+st.subheader("🤖 Bot State")
 
-try:
-    ticker, _ = k.get_ticker_information(pair)
-    current_price = float(ticker["c"][0][0])  # last trade price
-    st.metric(label=f"{pair} Price", value=f"${current_price:.2f}")
-except Exception as e:
-    st.error(f"Error fetching price: {e}")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Mode", state.get("mode", "N/A"))
+col2.metric("Open Position", str(state.get("open_position", False)))
+col3.metric("Daily Trades", state.get("daily_trade_count", 0))
+col4.metric("Last Reset", state.get("last_reset_date", "N/A"))
 
-# Fetch open orders
-st.subheader("Open Orders")
-try:
-    open_orders, _ = k.get_open_orders()
-    if open_orders.empty:
-        st.write("✅ No open orders")
-    else:
-        st.dataframe(open_orders)
-except Exception as e:
-    st.error(f"Error fetching open orders: {e}")
+# --------------------------
+# Open Trades
+# --------------------------
+st.subheader("📂 Open Trades")
+open_trades = state.get("open_trades", [])
+if open_trades:
+    df_open = pd.DataFrame(open_trades)
+    st.dataframe(df_open)
+else:
+    st.info("No open trades at the moment.")
 
-# Fetch closed orders (history)
-st.subheader("Closed Orders")
-try:
-    closed_orders, _ = k.get_closed_orders()
-    if closed_orders.empty:
-        st.write("ℹ️ No closed orders yet")
-    else:
-        st.dataframe(closed_orders.tail(10))
-except Exception as e:
-    st.error(f"Error fetching closed orders: {e}")
+# --------------------------
+# Trade History
+# --------------------------
+st.subheader("📜 Trade History")
+if trades:
+    df_trades = pd.DataFrame(trades)
+    st.dataframe(df_trades)
+
+    # Performance chart
+    if "profit_loss" in df_trades.columns:
+        st.subheader("📈 Profit / Loss Over Time")
+        fig, ax = plt.subplots()
+        df_trades["profit_loss"].cumsum().plot(ax=ax)
+        ax.set_ylabel("Cumulative P/L")
+        st.pyplot(fig)
+else:
+    st.info("No trades recorded yet.")
+
+# --------------------------
+# Price Section
+# --------------------------
+st.subheader("💰 Market Price (Placeholder)")
+last_price = state.get("last_price", None)
+if last_price:
+    st.metric("Last Price", f"£{last_price:,.2f}")
+else:
+    st.info("Fetching price...")
