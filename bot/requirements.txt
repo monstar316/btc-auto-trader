@@ -1,3 +1,8 @@
-krakenex
 python-dotenv
-Flask
+pandas
+numpy
+krakenex
+pykrakenapi
+requests
+pytz
+flask
