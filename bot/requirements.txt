@@ -6,3 +6,4 @@ pykrakenapi
 requests
 pytz
 flask
+ccxt
