@@ -5,7 +5,9 @@ import datetime
 import ccxt
 
 # === Load Config ===
-with open("config.json") as f:
+CONFIG_FILE = os.path.join("data", "config.json")
+
+with open(CONFIG_FILE) as f:
     config = json.load(f)
 
 TRADE_SYMBOL = config.get("trade_symbol", "XXBTZGBP")
