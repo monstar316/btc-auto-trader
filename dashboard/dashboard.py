@@ -1,103 +1,58 @@
-import os
-import json
 import streamlit as st
+import json
+import os
 import pandas as pd
-import matplotlib.pyplot as plt
-from streamlit_autorefresh import st_autorefresh
+import time
 
-# --------------------------
-# Helpers
-# --------------------------
-def load_config():
-    """Load config with safe defaults if missing."""
-    config_path = os.getenv("CONFIG_PATH", "config.json")
-    try:
-        with open(config_path) as f:
+STATE_FILE = "state.json"
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
             return json.load(f)
-    except FileNotFoundError:
-        st.warning("⚠️ config.json not found — using defaults")
-        return {
-            "trade_symbol": "XXBTZGBP",
-            "trade_amount": 0.001,
-            "max_daily_trades": 3,
-            "paper_trading": False
-        }
+    return {
+        "last_price": None,
+        "last_trade_time": None,
+        "open_position": False,
+        "daily_trade_count": 0,
+        "mode": "unknown",
+        "open_trades": [],
+        "trade_history": []
+    }
 
-def load_json(filename, default):
-    try:
-        with open(filename) as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return default
+st.set_page_config(page_title="Trading Bot Dashboard", layout="wide")
+st.title("📊 Trading Bot Dashboard")
 
-# --------------------------
-# Load data
-# --------------------------
-config = load_config()
-state = load_json("bot_state.json", {})
-trades = load_json("trades.json", [])
+# Auto-refresh every 10 seconds
+st_autorefresh = st.sidebar.empty()
+st_autorefresh.text("Auto-refreshing every 10s")
 
-# --------------------------
-# Dashboard Layout
-# --------------------------
-st.set_page_config(page_title="Kraken Trading Bot", layout="wide")
-st.title("📊 Kraken Trading Bot Dashboard")
+state = load_state()
 
-# Auto-refresh every 10s
-st_autorefresh(interval=10 * 1000, key="refresh")
+# --- Overview ---
+col1, col2, col3 = st.columns(3)
+col1.metric("Bot Mode", state.get("mode", "unknown"))
+col2.metric("Last Price", state.get("last_price", "N/A"))
+col3.metric("Trades Today", state.get("daily_trade_count", 0))
 
-# --------------------------
-# Config Section
-# --------------------------
-st.subheader("⚙️ Current Configuration")
-st.json(config)
+st.divider()
 
-# --------------------------
-# Bot State
-# --------------------------
-st.subheader("🤖 Bot State")
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Mode", state.get("mode", "N/A"))
-col2.metric("Open Position", str(state.get("open_position", False)))
-col3.metric("Daily Trades", state.get("daily_trade_count", 0))
-col4.metric("Last Reset", state.get("last_reset_date", "N/A"))
-
-# --------------------------
-# Open Trades
-# --------------------------
-st.subheader("📂 Open Trades")
-open_trades = state.get("open_trades", [])
-if open_trades:
-    df_open = pd.DataFrame(open_trades)
-    st.dataframe(df_open)
+# --- Open Trades ---
+st.subheader("📌 Open Trades")
+if state.get("open_trades"):
+    df_open = pd.DataFrame(state["open_trades"])
+    st.dataframe(df_open, use_container_width=True)
 else:
-    st.info("No open trades at the moment.")
+    st.info("No open trades.")
 
-# --------------------------
-# Trade History
-# --------------------------
+# --- Trade History ---
 st.subheader("📜 Trade History")
-if trades:
-    df_trades = pd.DataFrame(trades)
-    st.dataframe(df_trades)
-
-    # Performance chart
-    if "profit_loss" in df_trades.columns:
-        st.subheader("📈 Profit / Loss Over Time")
-        fig, ax = plt.subplots()
-        df_trades["profit_loss"].cumsum().plot(ax=ax)
-        ax.set_ylabel("Cumulative P/L")
-        st.pyplot(fig)
+if state.get("trade_history"):
+    df_hist = pd.DataFrame(state["trade_history"])
+    st.dataframe(df_hist, use_container_width=True)
 else:
-    st.info("No trades recorded yet.")
+    st.info("No trade history yet.")
 
-# --------------------------
-# Price Section
-# --------------------------
-st.subheader("💰 Market Price (Placeholder)")
-last_price = state.get("last_price", None)
-if last_price:
-    st.metric("Last Price", f"£{last_price:,.2f}")
-else:
-    st.info("Fetching price...")
+# Refresh every 10s (frontend)
+time.sleep(10)
+st.experimental_rerun()
